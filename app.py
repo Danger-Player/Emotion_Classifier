@@ -9,7 +9,7 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {'message': "Running"}
+    return FileResponse("webcam.html")
 
 @app.post("/predict")
 async def predict_emotion(file: UploadFile = File(...)):
@@ -21,7 +21,3 @@ async def predict_emotion(file: UploadFile = File(...)):
         "Emotion":emotion,
         "confidence":round(confidence,4)
     }
-
-@app.get("/demo")
-def serve_demo():
-    return FileResponse("webcam.html")
