@@ -2,7 +2,8 @@ from fastapi import FastAPI, UploadFile, File
 from inference import model, predict, preprocess_image, val_transform
 from io import BytesIO
 from PIL import Image
-import torch
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -20,3 +21,7 @@ async def predict_emotion(file: UploadFile = File(...)):
         "Emotion":emotion,
         "confidence":round(confidence,4)
     }
+
+@app.get("/demo")
+def serve_demo():
+    return FileResponse("webcam.html")

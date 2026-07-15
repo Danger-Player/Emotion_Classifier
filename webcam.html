@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Emotion Classifier</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #111;
+            color: #eee;
+            margin-top: 40px;
+        }
+        video {
+            border-radius: 8px;
+            border: 2px solid #444;
+            transform: scaleX(-1);
+        }
+        #result {
+            font-size: 28px;
+            margin-top: 20px;
+        }
+        #confidence {
+            font-size: 16px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Emotion Detection</h1>
+
+    <!-- The <video> tag shows the live webcam feed to the person. -->
+    <video id="video" width="480" height="360" autoplay muted></video>
+
+    <!--
+        The <canvas> tag is invisible (display:none) — we don't show it to
+        the user. We just use it as a scratch space to grab a single still
+        frame from the video, which we can then convert into an image file
+        to send to the server. Canvas is the standard way browsers let you
+        capture/manipulate pixel data from a video feed.
+    -->
+    <canvas id="canvas" width="480" height="360" style="display:none;"></canvas>
+
+    <div id="result">Waiting for prediction...</div>
+    <div id="confidence"></div>
+
+    <script>
+        // Grab references to the HTML elements we defined above, so our
+        // JavaScript code can interact with them.
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const resultDiv = document.getElementById('result');
+        const confidenceDiv = document.getElementById('confidence');
+
+        // ---------------------------------------------------------------
+        // STEP 1: Ask the browser for webcam access.
+        // ---------------------------------------------------------------
+        // navigator.mediaDevices.getUserMedia() is the standard browser API
+        // for requesting camera/microphone access. It returns a Promise
+        // (JavaScript's way of handling "this will finish later, not
+        // immediately" operations — similar in spirit to Python's async/await).
+        // { video: true } means "I only want the camera, not the microphone."
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                // Once permission is granted, `stream` represents the live
+                // camera feed. Setting video.srcObject = stream displays it
+                // in our <video> element in real time.
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                // If the user denies camera permission, or no camera exists,
+                // this runs instead — show something useful rather than
+                // silently failing.
+                resultDiv.textContent = "Camera access denied or unavailable.";
+                console.error(err);
+            });
+
+        // ---------------------------------------------------------------
+        // STEP 2: Every second, capture a frame and send it for prediction.
+        // ---------------------------------------------------------------
+        // setInterval runs a function repeatedly, every N milliseconds.
+        // 1000ms = once per second. Adjust this to go faster/slower.
+        setInterval(() => {
+            captureAndPredict();
+        }, 1000);
+
+        function captureAndPredict() {
+            // Get the canvas's 2D drawing context — the "pen" we use to
+            // draw onto the canvas.
+            const context = canvas.getContext('2d');
+
+            // drawImage copies the CURRENT frame of the video element onto
+            // the canvas, at position (0,0), sized to fill the canvas
+            // dimensions. This is the actual "snapshot" step.
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // canvas.toBlob() converts the canvas's pixel data into an
+            // actual image file (in memory, as a Blob — browser's version
+            // of a binary file object), encoded as JPEG here.
+            // This is asynchronous (takes a callback), since encoding can
+            // take a moment for larger images.
+            canvas.toBlob(blob => {
+                sendToServer(blob);
+            }, 'image/jpeg');
+        }
+
+        // ---------------------------------------------------------------
+        // STEP 3: Send the captured frame to our FastAPI /predict endpoint.
+        // ---------------------------------------------------------------
+        async function sendToServer(blob) {
+            // FormData is the browser's way of building a multipart form
+            // upload — the same format your FastAPI endpoint already
+            // expects (UploadFile), since it's the standard way browsers
+            // send files.
+            const formData = new FormData();
+            formData.append('file', blob, 'frame.jpg');
+
+            try {
+                // fetch() is the modern browser API for making HTTP
+                // requests, similar in role to Python's `requests` library.
+                const response = await fetch('http://localhost:8000/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // Update the page with the latest prediction.
+                resultDiv.textContent = data.Emotion;
+                confidenceDiv.textContent =
+                    "Confidence: " + (data.confidence * 100).toFixed(1) + "%";
+
+            } catch (err) {
+                resultDiv.textContent = "Error contacting server.";
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>
