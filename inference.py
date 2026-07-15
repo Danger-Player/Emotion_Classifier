@@ -13,8 +13,7 @@ val_transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-def preprocess_image(image_path, transform):
-    img = Image.open(image_path)
+def preprocess_image(img, transform):
     img = img.convert('L')
     img = img.resize((48, 48))
     image_tensor = transform(img)
@@ -31,8 +30,7 @@ emotions = {
     6: "Neutral",
 }
 
-def predict(image_path, model, transform):
-    image_tensor = preprocess_image(image_path, transform)
+def predict(image_tensor, model):
     image_tensor = image_tensor.to(device)
     with torch.no_grad():
         logits = model(image_tensor)
@@ -41,7 +39,10 @@ def predict(image_path, model, transform):
         label = res.item()
     confidence = probs[0, res.item()].item()
     return emotions[label], confidence
-    
-emote, confidence = predict("PrivateTest_33585800.jpg", model, val_transform)
-print(emote, confidence)
+
+if __name__ == "__main__":
+    image_path = "PrivateTest_33585800.jpg"
+    image_tensor = preprocess_image(Image.open(image_path), val_transform)
+    emote, confidence = predict(image_tensor, model)
+    print(emote, confidence)
         
