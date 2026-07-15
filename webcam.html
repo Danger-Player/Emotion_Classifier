@@ -120,7 +120,7 @@
             try {
                 // fetch() is the modern browser API for making HTTP
                 // requests, similar in role to Python's `requests` library.
-                const response = await fetch('http://localhost:8000/predict', {
+                const response = await fetch('/predict', {
                     method: 'POST',
                     body: formData
                 });
