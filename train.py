@@ -17,21 +17,19 @@ if torch.cuda.is_available():
 
 model = EmotionCNN(num_classes=7)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.load_state_dict(torch.load("emotion_cnn2.pt", map_location=device))
+model.load_state_dict(torch.load("emotion_cnn.pt", map_location=device)) #load for more epochs
 model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
 counts = Counter(train_dataset.labels)
 total = sum(counts.values())
 class_weights = torch.tensor([total / (7 * counts.get(i, 1)) for i in range(7)], dtype=torch.float32).to(device=device)
 lossf = torch.nn.CrossEntropyLoss(weight=class_weights)
 
-class_correct = defaultdict(int)
-class_total = defaultdict(int)
-
 epochs = 20
 for epoch in range(epochs):
-    
+    class_correct = defaultdict(int)
+    class_total = defaultdict(int)
     model.train()
     train_loss = 0
     for images, labels in train_loader:
